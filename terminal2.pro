@@ -11,8 +11,8 @@ unix {
 }
 
 win32 {
-  INCLUDEPATH += C:\qwt-6.3.0\include
-  include(C:\qwt-6.3.0\features\qwt.prf);
+  INCLUDEPATH += C:\Qwt-6.1.6\include
+  include(C:\Qwt-6.1.6\features\qwt.prf);
 }
 
 CONFIG += qwt

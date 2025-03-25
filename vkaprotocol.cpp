@@ -1,5 +1,5 @@
 #include "vkaprotocol.h"
-#include <QRegularExpression>
+#include <qregexp.h>
 
 #define DEBUG_PROTOCOL
 
@@ -81,17 +81,14 @@ bool VkaProtocol::unpack(const QByteArray& buf, Drive* azimut, Drive* elevat, QS
   QString str(buf);
 
   int pos = 0;
-
-  QRegularExpression rx(RESPONSE_PATTERN);
-  QRegularExpressionMatch _rxMatch = rx.match(str, pos);
-
-  if (!_rxMatch.hasMatch()) {
+  QRegExp rx(RESPONSE_PATTERN);
+  if ((rx.indexIn(str, pos)) == -1) {
     if (error) *error = QObject::tr("format fail");
     return false;
   }
 
-  QString state = _rxMatch.captured(3);
-  quint16 state_ctrl = state.left(2).toInt(nullptr, 16);
+  QString state = rx.cap(3);
+  quint16 state_ctrl = state.leftRef(2).toInt(nullptr, 16);
 
   // quint16 state_cmd = state.right(2).toInt(nullptr, 16);
   // qDebug() << "seq:   " << rx.cap(2);
@@ -101,9 +98,9 @@ bool VkaProtocol::unpack(const QByteArray& buf, Drive* azimut, Drive* elevat, QS
 #ifndef DEBUG_PROTOCOL
   QString tail = rx.cap(7);
 #else
-  QString tail = _rxMatch.captured(9);
+  QString tail = rx.cap(9);
 #endif
-  if ((DLE != _rxMatch.captured(1)) || (!tail.contains(ETX))) {
+  if ((DLE != rx.cap(1)) || (!tail.contains(ETX))) {
     if (error) *error = QObject::tr("match DLE, ETX fail");
     return false;
   }
@@ -135,7 +132,7 @@ bool VkaProtocol::unpack(const QByteArray& buf, Drive* azimut, Drive* elevat, QS
 
       default :
         // тайну обработки невалидной CRC знает только Юра
-        azimut->self = getAngle(_rxMatch.captured(4));
+        azimut->self = getAngle(rx.cap(4));
       break;
     }
   }
@@ -157,17 +154,17 @@ bool VkaProtocol::unpack(const QByteArray& buf, Drive* azimut, Drive* elevat, QS
 
       default :
         // тайну обработки невалидной CRC знает только Юра
-        elevat->self = getAngle(_rxMatch.captured(5));
+        elevat->self = getAngle(rx.cap(5));
       break;
     }
   }
 
 #ifdef DEBUG_PROTOCOL
   if (azimut != nullptr) {
-    azimut->dst = getAngle(_rxMatch.captured(6));
+    azimut->dst = getAngle(rx.cap(6));
   }
   if (elevat != nullptr) {
-    elevat->dst = getAngle(_rxMatch.captured(7));
+    elevat->dst = getAngle(rx.cap(7));
   }
 #endif
 

@@ -95,7 +95,7 @@ void Plot::setSettings(  )
 
   QwtPlotMagnifier *magnifier = new QwtPlotMagnifier(canvas());
   // клавиша, активирующая приближение/удаление
-  magnifier->setMouseButton(Qt::MiddleButton);
+  magnifier->setMouseButton(Qt::MidButton);
   // Включить возможность перемещения по графику
   QwtPlotPanner *d_panner = new QwtPlotPanner( canvas() );
   // клавиша, активирующая перемещение
