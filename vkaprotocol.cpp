@@ -11,10 +11,10 @@ static const QString DLE("5555");
 static const QString ETX("\r\n");
 
 #ifndef DEBUG_PROTOCOL
-static const QString RESPONSE_PATTERN("^(5555)(\\d{2})(\\d{4})([+-]\\d{5})([+-]\\d{5})(\\d{4})(.*)$");
+static const QString RESPONSE_PATTERN("^(5555)(\\d{2})(\\d{4})([+-]\\d{5})([+-]\\d{5})(\\d{4})(.*\\r\\n)$");
 static const int PAYLOAD = 22;
 #else
-static const QString RESPONSE_PATTERN("^(5555)(\\d{2})(\\d{4})([+-]\\d{5})([+-]\\d{5})([+-]\\d{5})([+-]\\d{5})(\\d{4})(.*)$");
+static const QString RESPONSE_PATTERN("^(5555)(\\d{2})(\\d{4})([+-]\\d{5})([+-]\\d{5})([+-]\\d{5})([+-]\\d{5})(\\d{4})(.*\\r\\n)$");
 static const int PAYLOAD = 34;
 #endif
 
