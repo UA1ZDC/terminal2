@@ -26,6 +26,7 @@
 
 #include <QMainWindow>
 #include <QLabel>
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -43,6 +44,18 @@ public:
 private slots:
     void writeSettings();
     void timerAction();
+
+    // управляющий порт
+    void openControlPort();
+    void closeControlPort();
+    void readControlData();
+    void handleControlError(QSerialPort::SerialPortError error);
+    void sendMoveCommand();
+
+    // периодическая отправка
+    void startPeriodicSending();
+    void stopPeriodicSending();
+    void applySendPeriod(int periodMs);
 
 private:
     Ui::MainWindow *ui = nullptr;
@@ -67,13 +80,33 @@ private:
 
 
     void splitData();
+    void splitControlData();
+
+    // общий обработчик распакованных пакетов — обновляет графики
+    void onDriveReceived(const mappi::antenna::Drive& az,
+                         const mappi::antenna::Drive& el,
+                         const QString& source);
 
     SettingsDialog * m_settings = nullptr;
     QSerialPort * m_serial = nullptr;
     Console * m_console = nullptr;
     myTimer * m_timer = nullptr;
 
-    mappi::antenna::Protocol* protocol_=nullptr;
+    mappi::antenna::Protocol* protocol_ = nullptr;         // VKA debug (терминал)
+
+    // управляющий порт
+    QSerialPort * m_control_serial = nullptr;
+    mappi::antenna::VkaProtocol* control_protocol_ = nullptr; // VKA non-debug
+    QByteArray buf_control_rx_;
+
+    // Таймер периодической отправки команд в control-порт.
+    // По умолчанию 100 мс, период настраивается в правой панели.
+    QTimer * m_send_timer = nullptr;
+
+    // Метка времени пакета (мс): младшая часть реального времени, обёрнутая
+    // по 60000 (секунда 0..59 + мс 0..999). Системные часы опрашиваются
+    // ровно один раз — в startPeriodicSending(), дальше инкремент по таймеру.
+    qint64 m_packet_time_ms = 0;
 
     QByteArray buf_rx_;
 

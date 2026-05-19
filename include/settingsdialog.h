@@ -89,14 +89,20 @@ public:
     explicit SettingsDialog(QWidget *parent = nullptr);
     ~SettingsDialog();
 
+    // настройки терминального (debug VKA) порта
     Settings settings() const;
+    // настройки управляющего (non-debug VKA) порта
+    Settings controlSettings() const;
 
 signals:
     void settingsApplied(bool value);
 
 private slots:
     void showPortInfo(int idx);
+    void showControlPortInfo(int idx);
     void apply();
+    // Взаимное исключение: один и тот же COM нельзя выбрать в обоих списках.
+    void syncPortExclusion();
     //void checkCustomBaudRatePolicy(int idx);
     //void checkCustomDevicePathPolicy(int idx);
 
@@ -106,10 +112,13 @@ private:
     void updateSettings();
 
     void loadParamFromSettings();
+    // Блокирует re-entrancy при программном изменении currentIndex в syncPortExclusion.
+    bool m_syncingExclusion = false;
 
 private:
     Ui::SettingsDialog * m_ui = nullptr;
     Settings m_currentSettings;
+    Settings m_currentControlSettings;
     //QIntValidator *m_intValidator = nullptr;
 };
 
