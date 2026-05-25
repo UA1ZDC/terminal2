@@ -29,6 +29,7 @@ ui_*.h
 *.jsc
 Makefile*
 *build-*
+!/packaging/build-deb.sh
 *.qm
 *.prl
 
@@ -53,3 +54,4 @@ compile_commands.json
 
 *_qmlcache.qrc
 /build
+/dist

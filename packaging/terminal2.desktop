@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal2
+Comment=Telemetry terminal and antenna control
+Exec=terminal2
+Icon=terminal2
+Terminal=false
+Categories=Utility;Science;
+StartupNotify=true

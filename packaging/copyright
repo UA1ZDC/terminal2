@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: terminal2
+Source: local working tree
+
+Files: *
+Copyright: No upstream copyright metadata was present in this tree.
+License: unknown
+ This package is intended for local or internal installation from the current
+ source tree. No redistribution rights are declared by this packaging metadata.
