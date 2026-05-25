@@ -66,6 +66,26 @@ static const char DEFAULT_CONTROL_PORT[] = "ttyr00";
 static const qint32 DEFAULT_TELEMETRY_BAUD = 230400;
 static const qint32 DEFAULT_CONTROL_BAUD = QSerialPort::Baud115200;
 
+static void addPortIfMissing(QComboBox *box, const QString &name)
+{
+    if (box->findText(name, Qt::MatchExactly) != -1)
+        return;
+
+    const QString systemLocation = name.startsWith(QLatin1Char('/'))
+            ? name
+            : QStringLiteral("/dev/%1").arg(name);
+    QStringList list;
+    list << name
+         << QStringLiteral("Manual serial port")
+         << blankString
+         << blankString
+         << systemLocation
+         << blankString
+         << blankString;
+
+    box->addItem(name, list);
+}
+
 SettingsDialog::SettingsDialog(QWidget *parent) :
     QDialog(parent),
     m_ui(new Ui::SettingsDialog)
@@ -291,7 +311,12 @@ int SettingsDialog::fillPortsInfo()
         m_ui->control_serialPortInfoListBox->addItem(list.first(), list);
     }
 
-    return infos.count();
+    addPortIfMissing(m_ui->serialPortInfoListBox, DEFAULT_CONTROL_PORT);
+    addPortIfMissing(m_ui->serialPortInfoListBox, DEFAULT_TELEMETRY_PORT);
+    addPortIfMissing(m_ui->control_serialPortInfoListBox, DEFAULT_CONTROL_PORT);
+    addPortIfMissing(m_ui->control_serialPortInfoListBox, DEFAULT_TELEMETRY_PORT);
+
+    return m_ui->serialPortInfoListBox->count();
 }
 
 void SettingsDialog::updateSettings()
