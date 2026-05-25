@@ -56,28 +56,35 @@
 #include <QLineEdit>
 #include <QSerialPortInfo>
 #include <QListWidget>
+#include <QStandardItemModel>
+#include <QSignalBlocker>
+#include <QMessageBox>
 
 static const char blankString[] = QT_TRANSLATE_NOOP("SettingsDialog", "N/A");
 
 SettingsDialog::SettingsDialog(QWidget *parent) :
     QDialog(parent),
     m_ui(new Ui::SettingsDialog)
-  //m_intValidator(new QIntValidator(0, 4000000, this))
 {
     m_ui->setupUi(this);
 
     m_ui->baudRateBox->setInsertPolicy(QComboBox::NoInsert);
+    m_ui->control_baudRateBox->setInsertPolicy(QComboBox::NoInsert);
 
     connect(m_ui->applyButton, &QPushButton::clicked,
             this, &SettingsDialog::apply);
     connect(m_ui->serialPortInfoListBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &SettingsDialog::showPortInfo);
+    connect(m_ui->control_serialPortInfoListBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SettingsDialog::showControlPortInfo);
     connect(m_ui->closeButton, &QPushButton::clicked,
             this, &SettingsDialog::hide);
-    //    connect(m_ui->baudRateBox,  QOverload<int>::of(&QComboBox::currentIndexChanged),
-    //            this, &SettingsDialog::checkCustomBaudRatePolicy);
-    //    connect(m_ui->serialPortInfoListBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-    //            this, &SettingsDialog::checkCustomDevicePathPolicy);
+
+    // Нельзя выбрать один и тот же порт в обоих комбобоксах.
+    connect(m_ui->serialPortInfoListBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SettingsDialog::syncPortExclusion);
+    connect(m_ui->control_serialPortInfoListBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &SettingsDialog::syncPortExclusion);
 
     fillPortsParameters();
 
@@ -85,6 +92,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
     m_ui->applyButton->setEnabled((0 < availPortsCount) ? true : false);
 
     loadParamFromSettings();
+    syncPortExclusion();
     updateSettings();
 }
 
@@ -98,6 +106,11 @@ SettingsDialog::Settings SettingsDialog::settings() const
     return m_currentSettings;
 }
 
+SettingsDialog::Settings SettingsDialog::controlSettings() const
+{
+    return m_currentControlSettings;
+}
+
 void SettingsDialog::showPortInfo(int idx)
 {
     if (idx == -1)
@@ -106,47 +119,93 @@ void SettingsDialog::showPortInfo(int idx)
     const QStringList list = m_ui->serialPortInfoListBox->itemData(idx).toStringList();
     m_ui->descriptionLabel->setText(tr("Description: %1").arg(list.count() > 1 ? list.at(1) : tr(blankString)));
     m_ui->manufacturerLabel->setText(tr("Manufacturer: %1").arg(list.count() > 2 ? list.at(2) : tr(blankString)));
-    //m_ui->serialNumberLabel->setText(tr("Serial number: %1").arg(list.count() > 3 ? list.at(3) : tr(blankString)));
-    //m_ui->locationLabel->setText(tr("Location: %1").arg(list.count() > 4 ? list.at(4) : tr(blankString)));
-    //m_ui->vidLabel->setText(tr("Vendor Identifier: %1").arg(list.count() > 5 ? list.at(5) : tr(blankString)));
-    //m_ui->pidLabel->setText(tr("Product Identifier: %1").arg(list.count() > 6 ? list.at(6) : tr(blankString)));
+}
+
+void SettingsDialog::showControlPortInfo(int idx)
+{
+    if (idx == -1)
+        return;
+
+    const QStringList list = m_ui->control_serialPortInfoListBox->itemData(idx).toStringList();
+    m_ui->control_descriptionLabel->setText(tr("Description: %1").arg(list.count() > 1 ? list.at(1) : tr(blankString)));
+    m_ui->control_manufacturerLabel->setText(tr("Manufacturer: %1").arg(list.count() > 2 ? list.at(2) : tr(blankString)));
 }
 
 void SettingsDialog::apply()
 {
+    // Страховка на случай, если у юзера всего один порт в системе и он
+    // случайно совпал. Само UI не даст выбрать, но на всякий случай.
+    if (m_ui->serialPortInfoListBox->count() > 1 &&
+        !m_ui->serialPortInfoListBox->currentText().isEmpty() &&
+        m_ui->serialPortInfoListBox->currentText() ==
+        m_ui->control_serialPortInfoListBox->currentText())
+    {
+        QMessageBox::warning(this, tr("Settings"),
+                             tr("Терминальный и управляющий порты должны отличаться."));
+        return;
+    }
+
     updateSettings();
     //hide();
 
     emit settingsApplied(true);
 }
 
-/*void SettingsDialog::checkCustomBaudRatePolicy(int idx)
+// Делает пункт в box'е (не)активным.
+static void setComboItemEnabled(QComboBox* box, int row, bool enabled)
 {
-    const bool isCustomBaudRate = !m_ui->baudRateBox->itemData(idx).isValid();
-    m_ui->baudRateBox->setEditable(isCustomBaudRate);
-    if (isCustomBaudRate) {
-        m_ui->baudRateBox->clearEditText();
-        QLineEdit *edit = m_ui->baudRateBox->lineEdit();
-        edit->setValidator(m_intValidator);
-    }
-}*/
+    auto* model = qobject_cast<QStandardItemModel*>(box->model());
+    if (!model) return;
+    QStandardItem* item = model->item(row);
+    if (!item) return;
 
-/*void SettingsDialog::checkCustomDevicePathPolicy(int idx)
+    Qt::ItemFlags f = item->flags();
+    if (enabled) f |=  Qt::ItemIsEnabled;
+    else         f &= ~Qt::ItemIsEnabled;
+    item->setFlags(f);
+}
+
+static void applyExclusion(QComboBox* target, const QString& excludedText)
 {
-    const bool isCustomPath = !m_ui->serialPortInfoListBox->itemData(idx).isValid();
-    m_ui->serialPortInfoListBox->setEditable(isCustomPath);
-    if (isCustomPath)
-        m_ui->serialPortInfoListBox->clearEditText();
-}*/
+    for (int i = 0; i < target->count(); ++i) {
+        const bool disable = (!excludedText.isEmpty() && target->itemText(i) == excludedText);
+        setComboItemEnabled(target, i, !disable);
+    }
+    // Если текущий выбранный пункт стал недоступен — переключаемся на первый доступный.
+    const QString cur = target->currentText();
+    if (!excludedText.isEmpty() && cur == excludedText) {
+        for (int i = 0; i < target->count(); ++i) {
+            if (target->itemText(i) != excludedText) {
+                QSignalBlocker b(target);
+                target->setCurrentIndex(i);
+                break;
+            }
+        }
+    }
+}
+
+void SettingsDialog::syncPortExclusion()
+{
+    if (m_syncingExclusion) return;
+    m_syncingExclusion = true;
+
+    const QString t = m_ui->serialPortInfoListBox->currentText();
+    const QString c = m_ui->control_serialPortInfoListBox->currentText();
+
+    applyExclusion(m_ui->control_serialPortInfoListBox, t);
+    applyExclusion(m_ui->serialPortInfoListBox, c);
+
+    m_syncingExclusion = false;
+}
 
 void SettingsDialog::fillPortsParameters()
 {
+    // --- Терминальный порт ---
     m_ui->baudRateBox->addItem(QStringLiteral("9600"), QSerialPort::Baud9600);
     m_ui->baudRateBox->addItem(QStringLiteral("19200"), QSerialPort::Baud19200);
     m_ui->baudRateBox->addItem(QStringLiteral("38400"), QSerialPort::Baud38400);
     m_ui->baudRateBox->addItem(QStringLiteral("115200"), QSerialPort::Baud115200);
     m_ui->baudRateBox->addItem(QStringLiteral("230400"), 230400);
-    //m_ui->baudRateBox->addItem(tr("Custom"));
 
     m_ui->dataBitsBox->addItem(QStringLiteral("5"), QSerialPort::Data5);
     m_ui->dataBitsBox->addItem(QStringLiteral("6"), QSerialPort::Data6);
@@ -169,11 +228,43 @@ void SettingsDialog::fillPortsParameters()
     m_ui->flowControlBox->addItem(tr("None"), QSerialPort::NoFlowControl);
     m_ui->flowControlBox->addItem(tr("RTS/CTS"), QSerialPort::HardwareControl);
     m_ui->flowControlBox->addItem(tr("XON/XOFF"), QSerialPort::SoftwareControl);
+
+    // --- Управляющий порт (VKA non-debug, дефолт 115200) ---
+    m_ui->control_baudRateBox->addItem(QStringLiteral("9600"), QSerialPort::Baud9600);
+    m_ui->control_baudRateBox->addItem(QStringLiteral("19200"), QSerialPort::Baud19200);
+    m_ui->control_baudRateBox->addItem(QStringLiteral("38400"), QSerialPort::Baud38400);
+    m_ui->control_baudRateBox->addItem(QStringLiteral("115200"), QSerialPort::Baud115200);
+    m_ui->control_baudRateBox->addItem(QStringLiteral("230400"), 230400);
+    m_ui->control_baudRateBox->setCurrentIndex(3); // 115200 по умолчанию
+
+    m_ui->control_dataBitsBox->addItem(QStringLiteral("5"), QSerialPort::Data5);
+    m_ui->control_dataBitsBox->addItem(QStringLiteral("6"), QSerialPort::Data6);
+    m_ui->control_dataBitsBox->addItem(QStringLiteral("7"), QSerialPort::Data7);
+    m_ui->control_dataBitsBox->addItem(QStringLiteral("8"), QSerialPort::Data8);
+    m_ui->control_dataBitsBox->setCurrentIndex(3);
+
+    m_ui->control_parityBox->addItem(tr("None"), QSerialPort::NoParity);
+    m_ui->control_parityBox->addItem(tr("Even"), QSerialPort::EvenParity);
+    m_ui->control_parityBox->addItem(tr("Odd"), QSerialPort::OddParity);
+    m_ui->control_parityBox->addItem(tr("Mark"), QSerialPort::MarkParity);
+    m_ui->control_parityBox->addItem(tr("Space"), QSerialPort::SpaceParity);
+
+    m_ui->control_stopBitsBox->addItem(QStringLiteral("1"), QSerialPort::OneStop);
+#ifdef Q_OS_WIN
+    m_ui->control_stopBitsBox->addItem(tr("1.5"), QSerialPort::OneAndHalfStop);
+#endif
+    m_ui->control_stopBitsBox->addItem(QStringLiteral("2"), QSerialPort::TwoStop);
+
+    m_ui->control_flowControlBox->addItem(tr("None"), QSerialPort::NoFlowControl);
+    m_ui->control_flowControlBox->addItem(tr("RTS/CTS"), QSerialPort::HardwareControl);
+    m_ui->control_flowControlBox->addItem(tr("XON/XOFF"), QSerialPort::SoftwareControl);
 }
 
 int SettingsDialog::fillPortsInfo()
 {
     m_ui->serialPortInfoListBox->clear();
+    m_ui->control_serialPortInfoListBox->clear();
+
     QString description;
     QString manufacturer;
     QString serialNumber;
@@ -192,14 +283,15 @@ int SettingsDialog::fillPortsInfo()
              << (info.productIdentifier() ? QString::number(info.productIdentifier(), 16) : blankString);
 
         m_ui->serialPortInfoListBox->addItem(list.first(), list);
+        m_ui->control_serialPortInfoListBox->addItem(list.first(), list);
     }
 
-    //m_ui->serialPortInfoListBox->addItem(tr("Custom"));
     return infos.count();
 }
 
 void SettingsDialog::updateSettings()
 {
+    // --- Терминальный порт ---
     m_currentSettings.name = m_ui->serialPortInfoListBox->currentText();
 
     m_currentSettings.baudRate = static_cast<QSerialPort::BaudRate>(
@@ -224,55 +316,72 @@ void SettingsDialog::updateSettings()
     m_currentSettings.stringFlowControl = m_ui->flowControlBox->currentText();
 
     m_currentSettings.localEchoEnabled = m_ui->localEchoCheckBox->isChecked();
+
+    // --- Управляющий порт ---
+    m_currentControlSettings.name = m_ui->control_serialPortInfoListBox->currentText();
+
+    m_currentControlSettings.baudRate = static_cast<QSerialPort::BaudRate>(
+                m_ui->control_baudRateBox->itemData(m_ui->control_baudRateBox->currentIndex()).toInt());
+    m_currentControlSettings.stringBaudRate = QString::number(m_currentControlSettings.baudRate);
+
+    m_currentControlSettings.dataBits = static_cast<QSerialPort::DataBits>(
+                m_ui->control_dataBitsBox->itemData(m_ui->control_dataBitsBox->currentIndex()).toInt());
+    m_currentControlSettings.stringDataBits = m_ui->control_dataBitsBox->currentText();
+
+    m_currentControlSettings.parity = static_cast<QSerialPort::Parity>(
+                m_ui->control_parityBox->itemData(m_ui->control_parityBox->currentIndex()).toInt());
+    m_currentControlSettings.stringParity = m_ui->control_parityBox->currentText();
+
+    m_currentControlSettings.stopBits = static_cast<QSerialPort::StopBits>(
+                m_ui->control_stopBitsBox->itemData(m_ui->control_stopBitsBox->currentIndex()).toInt());
+    m_currentControlSettings.stringStopBits = m_ui->control_stopBitsBox->currentText();
+
+    m_currentControlSettings.flowControl = static_cast<QSerialPort::FlowControl>(
+                m_ui->control_flowControlBox->itemData(m_ui->control_flowControlBox->currentIndex()).toInt());
+    m_currentControlSettings.stringFlowControl = m_ui->control_flowControlBox->currentText();
+
+    // для управляющего порта локальное эхо не используется
+    m_currentControlSettings.localEchoEnabled = false;
+}
+
+static void restoreComboByData(QComboBox *box, const QVariant &value)
+{
+    if (!value.isValid()) return;
+    int index = box->findData(value);
+    if (index != -1)
+        box->setCurrentIndex(index);
+}
+
+static void restoreComboByText(QComboBox *box, const QString &value)
+{
+    if (value.isEmpty()) return;
+    int index = box->findText(value, Qt::MatchContains);
+    if (index != -1)
+        box->setCurrentIndex(index);
 }
 
 void SettingsDialog::loadParamFromSettings()
 {
     QSettings settings("MySoft", "terminal2");
+
+    // --- Терминальный порт ---
     settings.beginGroup("SerialSettings");
+    restoreComboByText(m_ui->serialPortInfoListBox, settings.value("name").toString());
+    restoreComboByData(m_ui->baudRateBox,    settings.value("baudRate"));
+    restoreComboByData(m_ui->dataBitsBox,    settings.value("dataBits"));
+    restoreComboByData(m_ui->parityBox,      settings.value("parity"));
+    restoreComboByData(m_ui->stopBitsBox,    settings.value("stopBits"));
+    restoreComboByData(m_ui->flowControlBox, settings.value("flowControl"));
+    m_ui->localEchoCheckBox->setChecked(settings.value("localEchoEnabled").toBool());
+    settings.endGroup();
 
-    QComboBox * _t_listBox = m_ui->serialPortInfoListBox;
-    auto value = settings.value("name");
-    int index = _t_listBox->findText(value.toString(), Qt::MatchContains);
-    if(index != -1){
-        _t_listBox->setCurrentIndex(index);
-    }
-
-    _t_listBox = m_ui->baudRateBox;
-    value = settings.value("baudRate");
-    index = _t_listBox->findData(value);
-    if(index != -1){
-        _t_listBox->setCurrentIndex(index);
-    }
-
-    _t_listBox = m_ui->dataBitsBox;
-    value = settings.value("dataBits");
-    index = _t_listBox->findData(value);
-    if(index != -1){
-        _t_listBox->setCurrentIndex(index);
-    }
-
-    _t_listBox = m_ui->parityBox;
-    value = settings.value("parity");
-    index = _t_listBox->findData(value);
-    if(index != -1){
-        _t_listBox->setCurrentIndex(index);
-    }
-
-    _t_listBox = m_ui->stopBitsBox;
-    value = settings.value("stopBits");
-    index = _t_listBox->findData(value);
-    if(index != -1){
-        _t_listBox->setCurrentIndex(index);
-    }
-
-    _t_listBox = m_ui->flowControlBox;
-    value = settings.value("flowControl");
-    index = _t_listBox->findData(value);
-    if(index != -1){
-        _t_listBox->setCurrentIndex(index);
-    }
-
-    value = settings.value("localEchoEnabled");
-    m_ui->localEchoCheckBox->setChecked(value.toBool());
+    // --- Управляющий порт ---
+    settings.beginGroup("ControlSerialSettings");
+    restoreComboByText(m_ui->control_serialPortInfoListBox, settings.value("name").toString());
+    restoreComboByData(m_ui->control_baudRateBox,    settings.value("baudRate"));
+    restoreComboByData(m_ui->control_dataBitsBox,    settings.value("dataBits"));
+    restoreComboByData(m_ui->control_parityBox,      settings.value("parity"));
+    restoreComboByData(m_ui->control_stopBitsBox,    settings.value("stopBits"));
+    restoreComboByData(m_ui->control_flowControlBox, settings.value("flowControl"));
+    settings.endGroup();
 }

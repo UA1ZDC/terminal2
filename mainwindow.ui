@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
+    <width>900</width>
     <height>752</height>
    </rect>
   </property>
@@ -87,8 +87,156 @@
             </sizepolicy>
            </property>
            <property name="title">
-            <string/>
+            <string>Управление</string>
            </property>
+           <layout class="QVBoxLayout" name="controlVerticalLayout">
+            <item>
+             <widget class="QGroupBox" name="targetBox">
+              <property name="title">
+               <string>Целевые координаты и скорости</string>
+              </property>
+              <layout class="QFormLayout" name="controlForm">
+               <item row="0" column="0">
+                <widget class="QLabel" name="azTargetLabel">
+                 <property name="text">
+                  <string>Азимут (°):</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QDoubleSpinBox" name="azTargetSpin">
+                 <property name="decimals">
+                  <number>2</number>
+                 </property>
+                 <property name="minimum">
+                  <double>-999.00</double>
+                 </property>
+                 <property name="maximum">
+                  <double>999.00</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.1</double>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="elTargetLabel">
+                 <property name="text">
+                  <string>Угол места (°):</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QDoubleSpinBox" name="elTargetSpin">
+                 <property name="decimals">
+                  <number>2</number>
+                 </property>
+                 <property name="minimum">
+                  <double>-90.00</double>
+                 </property>
+                 <property name="maximum">
+                  <double>180.00</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.1</double>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="azVelLabel">
+                 <property name="text">
+                  <string>Скорость Az (°/c):</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QDoubleSpinBox" name="azVelSpin">
+                 <property name="decimals">
+                  <number>3</number>
+                 </property>
+                 <property name="minimum">
+                  <double>-99.999</double>
+                 </property>
+                 <property name="maximum">
+                  <double>99.999</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.1</double>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="elVelLabel">
+                 <property name="text">
+                  <string>Скорость El (°/c):</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QDoubleSpinBox" name="elVelSpin">
+                 <property name="decimals">
+                  <number>3</number>
+                 </property>
+                 <property name="minimum">
+                  <double>-99.999</double>
+                 </property>
+                 <property name="maximum">
+                  <double>99.999</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.1</double>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="periodicBox">
+              <property name="title">
+               <string>Периодическая отправка</string>
+              </property>
+              <layout class="QFormLayout" name="periodicForm">
+               <item row="0" column="0">
+                <widget class="QLabel" name="sendPeriodLabel">
+                 <property name="text">
+                  <string>Период (мс):</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QSpinBox" name="sendPeriodSpin">
+                 <property name="minimum">
+                  <number>10</number>
+                 </property>
+                 <property name="maximum">
+                  <number>10000</number>
+                 </property>
+                 <property name="singleStep">
+                  <number>10</number>
+                 </property>
+                 <property name="value">
+                  <number>100</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <spacer name="controlVSpacer">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
           </widget>
          </widget>
         </item>
@@ -108,7 +256,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>900</width>
      <height>30</height>
     </rect>
    </property>
@@ -148,7 +296,12 @@
    <addaction name="actionSerialDisconnect"/>
    <addaction name="actionConsoleClear"/>
    <addaction name="separator"/>
-   <addaction name="actionTimerStart"/>
+   <addaction name="actionControlSerialConnect"/>
+   <addaction name="actionControlSerialDisconnect"/>
+   <addaction name="separator"/>
+   <addaction name="actionControlSendMove"/>
+   <addaction name="actionControlSendStart"/>
+   <addaction name="actionControlSendStop"/>
   </widget>
   <action name="actionSerialSettings">
    <property name="icon">
@@ -204,13 +357,79 @@
     <string>ApplicationClose</string>
    </property>
   </action>
-  <action name="actionTimerStart">
+  <action name="actionControlSerialConnect">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="terminal.qrc">
+     <normaloff>:/images/connect.png</normaloff>:/images/connect.png</iconset>
+   </property>
+   <property name="text">
+    <string>Control connect</string>
+   </property>
+   <property name="toolTip">
+    <string>Подключить управляющий порт (VKA non-debug)</string>
+   </property>
+  </action>
+  <action name="actionControlSerialDisconnect">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="terminal.qrc">
+     <normaloff>:/images/disconnect.png</normaloff>:/images/disconnect.png</iconset>
+   </property>
+   <property name="text">
+    <string>Control disconnect</string>
+   </property>
+   <property name="toolTip">
+    <string>Отключить управляющий порт</string>
+   </property>
+  </action>
+  <action name="actionControlSendMove">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="timer.qrc">
      <normaloff>:/images/PlayHot.png</normaloff>:/images/PlayHot.png</iconset>
    </property>
    <property name="text">
-    <string>TimerStart</string>
+    <string>Send move</string>
+   </property>
+   <property name="toolTip">
+    <string>Отправить команду движения однократно</string>
+   </property>
+  </action>
+  <action name="actionControlSendStart">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="timer.qrc">
+     <normaloff>:/images/PlayHot.png</normaloff>:/images/PlayHot.png</iconset>
+   </property>
+   <property name="text">
+    <string>Start periodic</string>
+   </property>
+   <property name="toolTip">
+    <string>Старт периодической отправки команд</string>
+   </property>
+  </action>
+  <action name="actionControlSendStop">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="terminal.qrc">
+     <normaloff>:/images/clear.png</normaloff>:/images/clear.png</iconset>
+   </property>
+   <property name="text">
+    <string>Stop periodic</string>
+   </property>
+   <property name="toolTip">
+    <string>Остановить периодическую отправку</string>
    </property>
   </action>
  </widget>
