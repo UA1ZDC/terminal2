@@ -61,6 +61,10 @@
 #include <QMessageBox>
 
 static const char blankString[] = QT_TRANSLATE_NOOP("SettingsDialog", "N/A");
+static const char DEFAULT_TELEMETRY_PORT[] = "ttyr01";
+static const char DEFAULT_CONTROL_PORT[] = "ttyr00";
+static const qint32 DEFAULT_TELEMETRY_BAUD = 230400;
+static const qint32 DEFAULT_CONTROL_BAUD = QSerialPort::Baud115200;
 
 SettingsDialog::SettingsDialog(QWidget *parent) :
     QDialog(parent),
@@ -206,6 +210,7 @@ void SettingsDialog::fillPortsParameters()
     m_ui->baudRateBox->addItem(QStringLiteral("38400"), QSerialPort::Baud38400);
     m_ui->baudRateBox->addItem(QStringLiteral("115200"), QSerialPort::Baud115200);
     m_ui->baudRateBox->addItem(QStringLiteral("230400"), 230400);
+    m_ui->baudRateBox->setCurrentIndex(m_ui->baudRateBox->findData(DEFAULT_TELEMETRY_BAUD));
 
     m_ui->dataBitsBox->addItem(QStringLiteral("5"), QSerialPort::Data5);
     m_ui->dataBitsBox->addItem(QStringLiteral("6"), QSerialPort::Data6);
@@ -229,13 +234,13 @@ void SettingsDialog::fillPortsParameters()
     m_ui->flowControlBox->addItem(tr("RTS/CTS"), QSerialPort::HardwareControl);
     m_ui->flowControlBox->addItem(tr("XON/XOFF"), QSerialPort::SoftwareControl);
 
-    // --- Управляющий порт (VKA non-debug, дефолт 115200) ---
+    // --- Управляющий порт (VKA non-debug, дефолт ttyr00 / 115200) ---
     m_ui->control_baudRateBox->addItem(QStringLiteral("9600"), QSerialPort::Baud9600);
     m_ui->control_baudRateBox->addItem(QStringLiteral("19200"), QSerialPort::Baud19200);
     m_ui->control_baudRateBox->addItem(QStringLiteral("38400"), QSerialPort::Baud38400);
     m_ui->control_baudRateBox->addItem(QStringLiteral("115200"), QSerialPort::Baud115200);
     m_ui->control_baudRateBox->addItem(QStringLiteral("230400"), 230400);
-    m_ui->control_baudRateBox->setCurrentIndex(3); // 115200 по умолчанию
+    m_ui->control_baudRateBox->setCurrentIndex(m_ui->control_baudRateBox->findData(DEFAULT_CONTROL_BAUD));
 
     m_ui->control_dataBitsBox->addItem(QStringLiteral("5"), QSerialPort::Data5);
     m_ui->control_dataBitsBox->addItem(QStringLiteral("6"), QSerialPort::Data6);
@@ -366,8 +371,10 @@ void SettingsDialog::loadParamFromSettings()
 
     // --- Терминальный порт ---
     settings.beginGroup("SerialSettings");
-    restoreComboByText(m_ui->serialPortInfoListBox, settings.value("name").toString());
-    restoreComboByData(m_ui->baudRateBox,    settings.value("baudRate"));
+    restoreComboByText(m_ui->serialPortInfoListBox,
+                       settings.value("name", DEFAULT_TELEMETRY_PORT).toString());
+    restoreComboByData(m_ui->baudRateBox,
+                       settings.value("baudRate", DEFAULT_TELEMETRY_BAUD));
     restoreComboByData(m_ui->dataBitsBox,    settings.value("dataBits"));
     restoreComboByData(m_ui->parityBox,      settings.value("parity"));
     restoreComboByData(m_ui->stopBitsBox,    settings.value("stopBits"));
@@ -377,8 +384,10 @@ void SettingsDialog::loadParamFromSettings()
 
     // --- Управляющий порт ---
     settings.beginGroup("ControlSerialSettings");
-    restoreComboByText(m_ui->control_serialPortInfoListBox, settings.value("name").toString());
-    restoreComboByData(m_ui->control_baudRateBox,    settings.value("baudRate"));
+    restoreComboByText(m_ui->control_serialPortInfoListBox,
+                       settings.value("name", DEFAULT_CONTROL_PORT).toString());
+    restoreComboByData(m_ui->control_baudRateBox,
+                       settings.value("baudRate", DEFAULT_CONTROL_BAUD));
     restoreComboByData(m_ui->control_dataBitsBox,    settings.value("dataBits"));
     restoreComboByData(m_ui->control_parityBox,      settings.value("parity"));
     restoreComboByData(m_ui->control_stopBitsBox,    settings.value("stopBits"));
